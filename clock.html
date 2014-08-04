@@ -1,0 +1,1202 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<script type="text/javascript" src="http://ajax.googleapis.com/ajax/libs/jquery/1.7.0/jquery.min.js"></script>
+<script src="http://ajax.googleapis.com/ajax/libs/jqueryui/1.8.9/jquery-ui.min.js" type="text/javascript"></script>
+
+<title></title>
+<script type"text/javascript">
+
+// google maps api key for transeosolutions.com
+var TRANSEO_GMAPS_KEY = 'ABQIAAAAslK-HetlCKB1ZXt7wJ0z7xRQpVC0sICnyrAJEqbGVzz6kRx92BQEaerqEOS-1xM5IuWSBgzwsl9SxQ';
+// google search api key for transeosolutions.com
+var TRANSEO_GLOADER_KEY = 'ABQIAAAAslK-HetlCKB1ZXt7wJ0z7xRQpVC0sICnyrAJEqbGVzz6kRx92BQEaerqEOS-1xM5IuWSBgzwsl9SxQ';
+
+// bing api key
+var TRANSEO_BING_KEY = '9CE57B28353A9A0AAB9753985F1016F7240C1851';
+
+
+/**
+ * jQuery Cookie plugin
+ *
+ * Copyright (c) 2010 Klaus Hartl (stilbuero.de)
+ * Dual licensed under the MIT and GPL licenses:
+ * http://www.opensource.org/licenses/mit-license.php
+ * http://www.gnu.org/licenses/gpl.html
+ *
+ */
+jQuery.cookie = function (key, value, options) {
+
+    // key and at least value given, set cookie...
+    if (arguments.length > 1 && String(value) !== "[object Object]") {
+        options = jQuery.extend({}, options);
+
+        if (value === null || value === undefined) {
+            options.expires = -1;
+        }
+
+        if (typeof options.expires === 'number') {
+            var days = options.expires, t = options.expires = new Date();
+            t.setDate(t.getDate() + days);
+        }
+
+        value = String(value);
+
+        return (document.cookie = [
+            encodeURIComponent(key), '=',
+            options.raw ? value : cookie_encode(value),
+            options.expires ? '; expires=' + options.expires.toUTCString() : '', // use expires attribute, max-age is not supported by IE
+            options.path ? '; path=' + options.path : '',
+            options.domain ? '; domain=' + options.domain : '',
+            options.secure ? '; secure' : ''
+        ].join(''));
+    }
+
+    // key and possibly options given, get cookie...
+    options = value || {};
+    var result, decode = options.raw ? function (s) { return s; } : decodeURIComponent;
+    return (result = new RegExp('(?:^|; )' + encodeURIComponent(key) + '=([^;]*)').exec(document.cookie)) ? decode(result[1]) : null;
+};
+
+function cookie_encode(string){
+	//full uri decode not only to encode ",; =" but to save uicode charaters
+	var decoded = encodeURIComponent(string);
+	//encod back common and allowed charaters {}:"#[] to save space and make the cookies more human readable
+	var ns = decoded.replace(/(%7B|%7D|%3A|%22|%23|%5B|%5D)/g,function(charater){return decodeURIComponent(charater);});
+	return ns;
+}
+
+
+jQuery.exajax = (function(site, callback) {
+ 
+    // If no url was passed, exit.
+    if (!site) {
+        alert('No site was passed.');
+        return false;
+    }
+ 
+    // Take the provided url, and add it to a YQL query. Make sure you encode it!
+	
+	// ADDED SWC 11/26/11 - need to replace whitespace because FF with encodeURI doesn't
+	site = site.replace(/\s/g,'');
+    var yql = 'http://query.yahooapis.com/v1/public/yql?q=' + encodeURIComponent('select * from xml where url="' + site + '"') + '&format=xml&callback=?';
+ 
+    // Request that YSQL string, and run a callback function.
+    // Pass a defined function to prevent cache-busting.
+    $.getJSON(yql, cbFunc);
+ 
+    function cbFunc(data) {
+        // If we have something to work with...
+		//alert(yql + ' - ' + JSON.stringify(data));
+        if (data.results[0]) {
+            if (typeof callback === 'function') {
+                callback(data);
+            }
+        }
+        // Else, Maybe we requested a site that doesn't exist, and nothing returned.
+        else throw new Error('Nothing returned from getJSON.');
+    }
+});
+
+
+
+
+
+// ===================================================================
+// Author: Matt Kruse <matt@mattkruse.com>
+// WWW: http://www.mattkruse.com/
+//
+// NOTICE: You may use this code for any purpose, commercial or
+// private, without any further permission from the author. You may
+// remove this notice from your final code if you wish, however it is
+// appreciated by the author if at least my web site address is kept.
+//
+// You may *NOT* re-distribute this code in any way except through its
+// use. That means, you can include it in your product, or your web
+// site, or any other form where the code is actually being used. You
+// may not put the plain javascript up on your site for download or
+// include it in your javascript libraries for download. 
+// If you wish to share this code with others, please just point them
+// to the URL instead.
+// Please DO NOT link directly to my .js files from your site. Copy
+// the files to your server and use them there. Thank you.
+// ===================================================================
+
+// HISTORY
+// ------------------------------------------------------------------
+// May 17, 2003: Fixed bug in parseDate() for dates <1970
+// March 11, 2003: Added parseDate() function
+// March 11, 2003: Added "NNN" formatting option. Doesn't match up
+//                 perfectly with SimpleDateFormat formats, but 
+//                 backwards-compatability was required.
+
+// ------------------------------------------------------------------
+// These functions use the same 'format' strings as the 
+// java.text.SimpleDateFormat class, with minor exceptions.
+// The format string consists of the following abbreviations:
+// 
+// Field        | Full Form          | Short Form
+// -------------+--------------------+-----------------------
+// Year         | yyyy (4 digits)    | yy (2 digits), y (2 or 4 digits)
+// Month        | MMM (name or abbr.)| MM (2 digits), M (1 or 2 digits)
+//              | NNN (abbr.)        |
+// Day of Month | dd (2 digits)      | d (1 or 2 digits)
+// Day of Week  | EE (name)          | E (abbr)
+// Hour (1-12)  | hh (2 digits)      | h (1 or 2 digits)
+// Hour (0-23)  | HH (2 digits)      | H (1 or 2 digits)
+// Hour (0-11)  | KK (2 digits)      | K (1 or 2 digits)
+// Hour (1-24)  | kk (2 digits)      | k (1 or 2 digits)
+// Minute       | mm (2 digits)      | m (1 or 2 digits)
+// Second       | ss (2 digits)      | s (1 or 2 digits)
+// AM/PM        | a                  |
+//
+// NOTE THE DIFFERENCE BETWEEN MM and mm! Month=MM, not mm!
+// Examples:
+//  "MMM d, y" matches: January 01, 2000
+//                      Dec 1, 1900
+//                      Nov 20, 00
+//  "M/d/yy"   matches: 01/20/00
+//                      9/2/00
+//  "MMM dd, yyyy hh:mm:ssa" matches: "January 01, 2000 12:30:45AM"
+// ------------------------------------------------------------------
+
+var MONTH_NAMES=new Array('January','February','March','April','May','June','July','August','September','October','November','December','Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec');
+var DAY_NAMES=new Array('Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sun','Mon','Tue','Wed','Thu','Fri','Sat');
+function LZ(x) {return(x<0||x>9?"":"0")+x}
+
+// ------------------------------------------------------------------
+// isDate ( date_string, format_string )
+// Returns true if date string matches format of format string and
+// is a valid date. Else returns false.
+// It is recommended that you trim whitespace around the value before
+// passing it to this function, as whitespace is NOT ignored!
+// ------------------------------------------------------------------
+function isDate(val,format) {
+	var date=getDateFromFormat(val,format);
+	if (date==0) { return false; }
+	return true;
+	}
+
+// -------------------------------------------------------------------
+// compareDates(date1,date1format,date2,date2format)
+//   Compare two date strings to see which is greater.
+//   Returns:
+//   1 if date1 is greater than date2
+//   0 if date2 is greater than date1 of if they are the same
+//  -1 if either of the dates is in an invalid format
+// -------------------------------------------------------------------
+function compareDates(date1,dateformat1,date2,dateformat2) {
+	var d1=getDateFromFormat(date1,dateformat1);
+	var d2=getDateFromFormat(date2,dateformat2);
+	if (d1==0 || d2==0) {
+		return -1;
+		}
+	else if (d1 > d2) {
+		return 1;
+		}
+	return 0;
+	}
+
+// ------------------------------------------------------------------
+// formatDate (date_object, format)
+// Returns a date in the output format specified.
+// The format string uses the same abbreviations as in getDateFromFormat()
+// ------------------------------------------------------------------
+function formatDate(date,format) {
+	format=format+"";
+	var result="";
+	var i_format=0;
+	var c="";
+	var token="";
+	var y=date.getYear()+"";
+	var M=date.getMonth()+1;
+	var d=date.getDate();
+	var E=date.getDay();
+	var H=date.getHours();
+	var m=date.getMinutes();
+	var s=date.getSeconds();
+	var yyyy,yy,MMM,MM,dd,hh,h,mm,ss,ampm,HH,H,KK,K,kk,k;
+	// Convert real date parts into formatted versions
+	var value=new Object();
+	if (y.length < 4) {y=""+(y-0+1900);}
+	value["y"]=""+y;
+	value["yyyy"]=y;
+	value["yy"]=y.substring(2,4);
+	value["M"]=M;
+	value["MM"]=LZ(M);
+	value["MMM"]=MONTH_NAMES[M-1];
+	value["NNN"]=MONTH_NAMES[M+11];
+	value["d"]=d;
+	value["dd"]=LZ(d);
+	value["E"]=DAY_NAMES[E+7];
+	value["EE"]=DAY_NAMES[E];
+	value["H"]=H;
+	value["HH"]=LZ(H);
+	if (H==0){value["h"]=12;}
+	else if (H>12){value["h"]=H-12;}
+	else {value["h"]=H;}
+	value["hh"]=LZ(value["h"]);
+	if (H>11){value["K"]=H-12;} else {value["K"]=H;}
+	value["k"]=H+1;
+	value["KK"]=LZ(value["K"]);
+	value["kk"]=LZ(value["k"]);
+	if (H > 11) { value["a"]="PM"; }
+	else { value["a"]="AM"; }
+	value["m"]=m;
+	value["mm"]=LZ(m);
+	value["s"]=s;
+	value["ss"]=LZ(s);
+	while (i_format < format.length) {
+		c=format.charAt(i_format);
+		token="";
+		while ((format.charAt(i_format)==c) && (i_format < format.length)) {
+			token += format.charAt(i_format++);
+			}
+		if (value[token] != null) { result=result + value[token]; }
+		else { result=result + token; }
+		}
+	return result;
+	}
+	
+// ------------------------------------------------------------------
+// Utility functions for parsing in getDateFromFormat()
+// ------------------------------------------------------------------
+function _isInteger(val) {
+	var digits="1234567890";
+	for (var i=0; i < val.length; i++) {
+		if (digits.indexOf(val.charAt(i))==-1) { return false; }
+		}
+	return true;
+	}
+function _getInt(str,i,minlength,maxlength) {
+	for (var x=maxlength; x>=minlength; x--) {
+		var token=str.substring(i,i+x);
+		if (token.length < minlength) { return null; }
+		if (_isInteger(token)) { return token; }
+		}
+	return null;
+	}
+	
+// ------------------------------------------------------------------
+// getDateFromFormat( date_string , format_string )
+//
+// This function takes a date string and a format string. It matches
+// If the date string matches the format string, it returns the 
+// getTime() of the date. If it does not match, it returns 0.
+// ------------------------------------------------------------------
+function getDateFromFormat(val,format) {
+	val=val+"";
+	format=format+"";
+	var i_val=0;
+	var i_format=0;
+	var c="";
+	var token="";
+	var token2="";
+	var x,y;
+	var now=new Date();
+	var year=now.getYear();
+	var month=now.getMonth()+1;
+	var date=1;
+	var hh=now.getHours();
+	var mm=now.getMinutes();
+	var ss=now.getSeconds();
+	var ampm="";
+	
+	while (i_format < format.length) {
+		// Get next token from format string
+		c=format.charAt(i_format);
+		token="";
+		while ((format.charAt(i_format)==c) && (i_format < format.length)) {
+			token += format.charAt(i_format++);
+			}
+		// Extract contents of value based on format token
+		if (token=="yyyy" || token=="yy" || token=="y") {
+			if (token=="yyyy") { x=4;y=4; }
+			if (token=="yy")   { x=2;y=2; }
+			if (token=="y")    { x=2;y=4; }
+			year=_getInt(val,i_val,x,y);
+			if (year==null) { return 0; }
+			i_val += year.length;
+			if (year.length==2) {
+				if (year > 70) { year=1900+(year-0); }
+				else { year=2000+(year-0); }
+				}
+			}
+		else if (token=="MMM"||token=="NNN"){
+			month=0;
+			for (var i=0; i<MONTH_NAMES.length; i++) {
+				var month_name=MONTH_NAMES[i];
+				if (val.substring(i_val,i_val+month_name.length).toLowerCase()==month_name.toLowerCase()) {
+					if (token=="MMM"||(token=="NNN"&&i>11)) {
+						month=i+1;
+						if (month>12) { month -= 12; }
+						i_val += month_name.length;
+						break;
+						}
+					}
+				}
+			if ((month < 1)||(month>12)){return 0;}
+			}
+		else if (token=="EE"||token=="E"){
+			for (var i=0; i<DAY_NAMES.length; i++) {
+				var day_name=DAY_NAMES[i];
+				if (val.substring(i_val,i_val+day_name.length).toLowerCase()==day_name.toLowerCase()) {
+					i_val += day_name.length;
+					break;
+					}
+				}
+			}
+		else if (token=="MM"||token=="M") {
+			month=_getInt(val,i_val,token.length,2);
+			if(month==null||(month<1)||(month>12)){return 0;}
+			i_val+=month.length;}
+		else if (token=="dd"||token=="d") {
+			date=_getInt(val,i_val,token.length,2);
+			if(date==null||(date<1)||(date>31)){return 0;}
+			i_val+=date.length;}
+		else if (token=="hh"||token=="h") {
+			hh=_getInt(val,i_val,token.length,2);
+			if(hh==null||(hh<1)||(hh>12)){return 0;}
+			i_val+=hh.length;}
+		else if (token=="HH"||token=="H") {
+			hh=_getInt(val,i_val,token.length,2);
+			if(hh==null||(hh<0)||(hh>23)){return 0;}
+			i_val+=hh.length;}
+		else if (token=="KK"||token=="K") {
+			hh=_getInt(val,i_val,token.length,2);
+			if(hh==null||(hh<0)||(hh>11)){return 0;}
+			i_val+=hh.length;}
+		else if (token=="kk"||token=="k") {
+			hh=_getInt(val,i_val,token.length,2);
+			if(hh==null||(hh<1)||(hh>24)){return 0;}
+			i_val+=hh.length;hh--;}
+		else if (token=="mm"||token=="m") {
+			mm=_getInt(val,i_val,token.length,2);
+			if(mm==null||(mm<0)||(mm>59)){return 0;}
+			i_val+=mm.length;}
+		else if (token=="ss"||token=="s") {
+			ss=_getInt(val,i_val,token.length,2);
+			if(ss==null||(ss<0)||(ss>59)){return 0;}
+			i_val+=ss.length;}
+		else if (token=="a") {
+			if (val.substring(i_val,i_val+2).toLowerCase()=="am") {ampm="AM";}
+			else if (val.substring(i_val,i_val+2).toLowerCase()=="pm") {ampm="PM";}
+			else {return 0;}
+			i_val+=2;}
+		else {
+			if (val.substring(i_val,i_val+token.length)!=token) {return 0;}
+			else {i_val+=token.length;}
+			}
+		}
+	// If there are any trailing characters left in the value, it doesn't match
+	if (i_val != val.length) { return 0; }
+	// Is date valid for month?
+	if (month==2) {
+		// Check for leap year
+		if ( ( (year%4==0)&&(year%100 != 0) ) || (year%400==0) ) { // leap year
+			if (date > 29){ return 0; }
+			}
+		else { if (date > 28) { return 0; } }
+		}
+	if ((month==4)||(month==6)||(month==9)||(month==11)) {
+		if (date > 30) { return 0; }
+		}
+	// Correct hours value
+	if (hh<12 && ampm=="PM") { hh=hh-0+12; }
+	else if (hh>11 && ampm=="AM") { hh-=12; }
+	var newdate=new Date(year,month-1,date,hh,mm,ss);
+	return newdate.getTime();
+	}
+
+// ------------------------------------------------------------------
+// parseDate( date_string [, prefer_euro_format] )
+//
+// This function takes a date string and tries to match it to a
+// number of possible date formats to get the value. It will try to
+// match against the following international formats, in this order:
+// y-M-d   MMM d, y   MMM d,y   y-MMM-d   d-MMM-y  MMM d
+// M/d/y   M-d-y      M.d.y     MMM-d     M/d      M-d
+// d/M/y   d-M-y      d.M.y     d-MMM     d/M      d-M
+// A second argument may be passed to instruct the method to search
+// for formats like d/M/y (european format) before M/d/y (American).
+// Returns a Date object or null if no patterns match.
+// ------------------------------------------------------------------
+function parseDate(val) {
+	var preferEuro=(arguments.length==2)?arguments[1]:false;
+	generalFormats=new Array('y-M-d','MMM d, y','MMM d,y','y-MMM-d','d-MMM-y','MMM d');
+	monthFirst=new Array('M/d/y','M-d-y','M.d.y','MMM-d','M/d','M-d');
+	dateFirst =new Array('d/M/y','d-M-y','d.M.y','d-MMM','d/M','d-M');
+	var checkList=new Array('generalFormats',preferEuro?'dateFirst':'monthFirst',preferEuro?'monthFirst':'dateFirst');
+	var d=null;
+	for (var i=0; i<checkList.length; i++) {
+		var l=window[checkList[i]];
+		for (var j=0; j<l.length; j++) {
+			d=getDateFromFormat(val,l[j]);
+			if (d!=0) { return new Date(d); }
+			}
+		}
+	return null;
+	}
+</script>
+<script type="text/javascript">
+	var widgets = new Array('clock','background','weather');
+	
+	function togglewidget() {
+	for( var i = 0; i < arguments.length; i++ )
+			if ($.inArray(arguments[i],widgets) != -1)
+				if ($.cookie('transeo.clock_' + arguments[i]) != 'true') {
+					$.cookie('transeo.clock_' + arguments[i],'true');
+					initwidget(arguments[i]);
+				}
+				else {
+					$.cookie('transeo.clock_' + arguments[i],'false');
+					$('#config input[name="' + arguments[i] + '"]').prop('checked',false);
+					deinitwidget(arguments[i]);
+				}
+		
+	}
+	function deinitwidget() {
+		for( var i = 0; i < arguments.length; i++ ) {
+			if ($.inArray(arguments[i],widgets) != -1)
+				eval('deinit' + arguments[i] + '();');
+		}	
+	}
+	
+	function initwidget() {
+		var _hadcookie = false;
+		for( var i = 0; i < arguments.length; i++ ) {
+			if ($.inArray(arguments[i],widgets) != -1)
+				eval('init' + arguments[i] + '();');
+			else if (arguments[i] == 'fromcookie') {
+				for( var j = 0; j < widgets.length; j++ )
+					if ($.cookie('transeo.clock_' + widgets[j]) == 'true') {
+						$('#config input[name="' + widgets[j] + '"]').prop('checked',true);
+						_hadcookie = true;
+						eval('init' + widgets[j] + '();');
+					}
+				return _hadcookie;
+			}
+		}		
+	}
+	
+	function initconfig(callback) {
+		$('#content').append('<div id="config-trigger"></div><div id="config"></div>');
+		$('#config').append('<div class="config-widget">show weather <input type="checkbox" name="weather" onclick="togglewidget(\'weather\');" value="" /></div>');
+		$('#config').append('<div class="config-widget">show clock <input type="checkbox" name="clock" onclick="togglewidget(\'clock\');" value="" /></div>');
+		$('#config').append('<div class="config-widget">show background <input type="checkbox" name="background" onclick="togglewidget(\'background\');" value="" /></div>');
+		$('#config').append('													\
+			<div class="config-features">										\
+			    image slideshow via bing images & local city/state |			\
+			    cookie-based preference saving<br/>								\
+			    taskbar for widget toggling |									\
+			    weather updated timestamp |										\
+			    <span style="font-weight:bold">pause button for background slideshow </span>						\
+			</div>																\
+		');
+		$('#config-trigger').mouseenter(
+			function() { $(this).hide(); $('#config').show('fade'); }
+		);
+		$('#config').mouseleave(
+			function() { $(this).hide('fade'); $('#config-trigger').show(); }
+		);
+
+		// preset local city/state
+		$.ajax({
+			url: 'http://www.geoplugin.net/json.gp?jsoncallback=?', 
+			success: function(data){
+				$('#content').data('transeo.config.city',data['geoplugin_city']);
+				$('#content').data('transeo.config.state',data['geoplugin_region']);
+				callback();
+			},
+			dataType: 'JSON',
+			async: false
+		});
+	}
+</script>
+<script type="text/javascript">
+	// weather widget
+	function deinitweather() {
+		$('#tz1-weather').remove();
+		$('#tz2-weather').remove();
+		$('#weather').remove();
+		clearInterval($('#content').data('transeo.weather.tz1.timer'));
+		clearInterval($('#content').data('transeo.weather.tz2.timer'));
+	}
+	
+	function initweather() {
+		$('#content').after('									\
+			<style id="weather" type="text/css">				\
+				.weather-icon img {								\
+					position:relative;							\
+					top:6px;									\
+					margin-left:9px;							\
+					width:75px;									\
+				}												\
+				.weather-icon, .weather-description {			\
+					position:relative;							\
+					vertical-align:middle;						\
+					margin:0;									\
+					padding:0;									\
+					display:inline-block;						\
+				}												\
+				.weather-description {							\
+					text-align:left;							\
+					font-size: .8em;							\
+					background-color:rgba(255,255,255,0.5);		\
+					padding:5px;								\
+					border-radius-right:4px;					\
+					-moz-border-radius:4px; 					\
+					-webkit-border-radius:4px; 					\
+				}												\
+				.temp {											\
+					font-size:.8em;								\
+				}												\
+				.condition, .wind, .humidity {					\
+					font-size:.55em;							\
+				}												\
+				.weather-icon .updated {						\
+					font-size:.25em;							\
+				}												\
+				#tz1-weather {									\
+					text-shadow:none;							\
+					color:#000;									\
+					position:absolute;							\
+					left:20px;									\
+					bottom:10px;								\
+					background-color:rgba(255,255,255,0.35);	\
+					font-size:1.5em;							\
+					border-radius:4px;							\
+					-moz-border-radius:4px; 					\
+					-webkit-border-radius:4px; 					\
+				}												\
+				#tz2-weather {									\
+					font-size:2.75em;							\
+					background-color:rgba(255,255,255,0.35);	\
+					margin-bottom:8px;							\
+				}												\
+				#tz2-weather .weather-icon img {				\
+					width:35px;									\
+					top:3px;									\
+				}												\
+				#tz2-weather .weather-description {				\
+					background:none;							\
+				}												\
+				#tz2-weather .temp {							\
+					margin-left:5px;							\
+				}												\
+				#tz2-weather .weather-icon .updated {			\
+					display:none;								\
+				}												\
+			</style>											\
+		');
+		if ($('#tz1').length) {
+			$('#tz1').append('<div id="tz1-weather"></div>');
+			transeo_weather_updatetz1();
+			$('#content').data('transeo.weather.tz1.timer',setInterval('transeo_weather_updatetz1();',300000));
+		}
+		if ($('#tz2').length) {
+			$('#tz2 .time').after('<div id="tz2-weather"></div>');
+			transeo_weather_updatetz2();
+			$('#content').data('transeo.weather.tz2.timer',setInterval('transeo_weather_updatetz2();',300000));
+		}
+	}
+	
+	function transeo_weather_updatetz1() {
+		$.exajax('http://www.google.com/ig/api?weather=' + $('#content').data('transeo.config.city') + ',' + $('#content').data('transeo.config.state'),
+			function(data) {
+				$('#tz1-weather').html(transeo_weather_makediv(data['results']));
+				var doc = (new DOMParser()).parseFromString(_xml, 'text/xml');
+		var _icon = $(doc).find('current_conditions icon').attr('data');
+			});
+	}
+
+	function transeo_weather_updatetz2() {
+		$.exajax('http://www.google.com/ig/api?weather=' + $('#tz2 input[name="address"]').val(),
+			function(data) {
+				$('#tz2-weather').html(transeo_weather_makediv(data['results']));
+				//$('#tz2-weather-description .temp').insertBefore($('#tz2-weather-description')).addClass('weather-description');
+				$('#tz2-weather .weather-icon').after($('#tz2-weather .temp'));
+				$('#tz2-weather .temp').addClass('weather-description');
+			});
+	}
+	
+	function transeo_weather_makediv(_xml) {
+		var doc = (new DOMParser()).parseFromString(_xml, 'text/xml');
+		var _icon = $(doc).find('current_conditions icon').attr('data');
+		var _html = '<div class="weather-icon"><img src="http://www.google.com/' + _icon + '" /><div class="updated">@ ' + formatDate(new Date(),'h:mm:ss a') + '</div></div>';
+		var _temp = $(doc).find('current_conditions temp_f').attr('data');
+		var _condition = $(doc).find('current_conditions condition').attr('data');
+		var _wind = $(doc).find('current_conditions wind_condition').attr('data');
+		var _humidity = $(doc).find('current_conditions humidity').attr('data');
+		_html += '																	\
+			<div class="weather-description">										\
+			<div class="temp">' + _temp + '&deg;</div>								\
+			<div class="condition">' + _condition + '</div>							\
+			<div class="wind">' + _wind + '</div>									\
+			<div class="humidity">' + _humidity + '</div>							\
+			</div>																	\
+		';
+		return _html;
+	}
+</script>
+<script type="text/javascript">
+	// background img widget
+	
+	// bing image api info
+	// http://msdn.microsoft.com/en-us/library/dd250942.aspx
+	// using bing because all of the google apis are deprecated and i don't like yahoo
+	
+	function deinitbackground() {
+		clearInterval($('#content').data('transeo.background.timer'));
+		$('#img-background').remove();
+	}
+
+	function initbackground() {
+		$('#content').prepend('																			\
+			<div id="img-background">																	\
+				<style type="text/css">																	\
+				img.background, img.cache {																\
+					width:100%;																			\
+					height:100%;																		\
+					position:absolute;																	\
+					top:0;																				\
+					left:0;																				\
+					margin:0;																			\
+					padding:0;																			\
+					z-index:-100;																		\
+				}																						\
+				#img-background .controls {																\
+					padding:5px;																		\
+					border-radius-right:2px;															\
+					-moz-border-radius:2px; 															\
+					-webkit-border-radius:2px; 															\
+					position:absolute;																	\
+					top:10px;																			\
+					left:10px;																			\
+					background-color:rgba(255,255,255,0.5);												\
+					color:#000;																			\
+					font-size:.4em;																		\
+					vertical-align:bottom;																\
+					text-align:center;																	\
+					z-index:101;																		\
+				}																						\
+				</style>																				\
+				<img class="background" />																\
+				<img class="cache" style="display:none; z-index:-99;" />								\
+				<div class="controls">																	\
+					<div class="button-mediacontrols button-pause">&nbsp;</div> 						\
+					<div class="button-mediacontrols button-next" style="left:50px;">&nbsp;</div> 		\
+					<br/>background																		\
+					<div class="delay"></div>															\
+				</div>																					\
+			</div>																						\
+		');
+		
+		$(function() {
+			$('#img-background .controls .delay').slider({
+				range: 'max',
+				min: 5,
+				max: 3600,
+				value: 5,
+				slide: function( event, ui ) {
+					$('#content').data('transeo.background.delay',ui.value);
+				}
+			});
+			//$('#content').data('transeo.background.delay',$('#img-background .controls .delay').slider('value'));
+		});
+			
+		$('#content').data('transeo.background.delay',300); // set default slideshow delay to 300s (5min)
+					
+		$('#img-background img.cache').load(function() {
+			// image cross-fade SWC 11/27/11
+			// pre-position cache above background
+			// 1. now that the cache image is loaded, fade it in slowly
+			// 2. hide the background image, set it to the same as the cache image, and then show it quickly
+			// 3. hide the cache image
+			$(this).fadeIn(1500, function() {
+				$('#img-background img.background').hide().attr('src',$('#img-background img.cache').attr('src')).show(250, function() {
+					$('#img-background img.cache').hide();
+				});
+			});
+		});
+		
+		$('#img-background .button-pause').live('click',function() {
+			$(this).removeClass('button-pause').addClass('button-play');
+			clearInterval($('#content').data('transeo.background.timer'));
+		});
+		
+		$('#img-background .button-play').live('click',function() {
+			$(this).removeClass('button-play').addClass('button-pause');
+			$('#content').data('transeo.background.timer',setInterval('transeo_background_update();',$('#content').data('transeo.background.delay')*1000));
+		});
+		
+		$('#img-background .button-next').click(function() {
+			transeo_background_update();
+		});
+		
+		transeo_background_update();
+		$('#content').data('transeo.background.timer',setInterval('transeo_background_update();',$('#content').data('transeo.background.delay')*1000));
+		
+	}
+	
+	function transeo_background_update() {
+		var _url = 'http://api.bing.net/json.aspx?JsonType=callback&JsonCallback=?&Appid=' + TRANSEO_BING_KEY + '&query=' + $('#content').data('transeo.config.city') + ', ' + $('#content').data('transeo.config.state') + '&sources=image&image.adult=strict&image.aspect=wide&image.size=large&image.style=photo&image.count=50';
+		// bing search - need to specify ? as the JsonCallback function for jQuery to use it...
+		$.getJSON(_url,function(data) {
+			// get random image, but bing limits you to 1000 search results
+			var _randomseed = Math.floor(Math.random()*data.SearchResponse.Image.Results.length);
+			$('#img-background img.cache').attr('src',data.SearchResponse.Image.Results[_randomseed].MediaUrl);
+
+			//var _randomseed = Math.floor(Math.random()*((data.SearchResponse.Image.Total > 1000) ? 100 : data.SearchResponse.Image.Total))
+			// if you want to requery because the image you want isn't in the first resultset
+			//$.getJSON(_url + '&image.offset=' + _randomseed,function(data) {
+				//$('#img-background img.cache').attr('src',data.SearchResponse.Image.Results[0].MediaUrl);
+			//});
+		});
+	}
+</script>
+<script type="text/javascript">
+	// clock widget
+	function deinitclock() {
+		clearInterval($('#content').data('transeo.clock.timer'));
+		$('#tz1').remove();
+		$('#tz2').remove();
+	}
+
+	function initclock() {
+		$('#content').append('														\
+			<div id="clock">														\
+				<div id="tz1">   													\
+					<div class="title">												\
+						Local time in 												\
+						<span class="city"></span>									\
+						</div>														\
+					<div class="day"></div>    										\
+					<div class="time"></div>										\
+				</div>    															\
+				<div id="tz2">    													\
+					<div class="gmt">-5</div>        								\
+					<div class="title">												\
+						Local time in 												\
+						<span class="city">Springfield</span>						\
+					</div>        													\
+					<div class="day"></div>        									\
+					<div class="time"></div>         								\
+					<div class="tzchange">       									\
+					<form onsubmit="return transeo_clock_updatetz2(this.address.value)">        	\
+						<input type="text" name="address" value="" />				\
+						<input class="submit" type="submit" value="go" />        	\
+					</form>    														\
+				</div>																\
+			</div>																	\
+			<style type="text/css">													\
+			.title {																\
+				margin: 0 auto;														\
+				text-align:center; 													\
+				font-size:2.0em;													\
+			}																		\
+			.day {																	\
+				font-size:2.5em;													\
+			}																		\
+			.time {																	\
+				font-size:7.5em;													\
+			}																		\
+			#tz1 {																	\
+				margin-top:160px;													\
+				color:white;														\
+				text-shadow: 1px 1px 3px rgba(0,0,0,1.5);							\
+			}																		\
+			#tz1 .time {															\
+				top:-.25em;															\
+				position:relative;													\
+			}																		\
+			#tz2 {																	\
+				width:100%;															\
+				padding:15px;														\
+				border-top: solid 1px #ddd;											\
+				border-left: solid 1px #ddd;										\
+				-moz-box-shadow: 3px 3px 10px 2px #dfdfdf;							\
+				-webkit-box-shadow: 3px 3px 10px 2px #dfdfdf;						\
+				box-shadow: 3px 3px 10px 2px #dfdfdf;								\
+				border-radius:4px;													\
+				-moz-border-radius:4px; 											\
+				-webkit-border-radius:4px; 											\
+				background:#FF9;													\
+				font-size:35%;														\
+				position:absolute;													\
+				width:20%;															\
+				top:10px;															\
+				right:30px;															\
+				text-shadow: 1px 1px 3px rgba(25,25,25,.25);						\
+			}																		\
+			#tz2 .day {																\
+				font-size:1.8em;													\
+			}																		\
+			#tz2 .time {															\
+				font-size:4em;														\
+			}																		\
+			.tzchange {																\
+				opacity:0;															\
+				-webkit-transition-duration:.25s; 									\
+				-webkit-transition-property:all; 									\
+				-webkit-transition-timing-function:ease-in-out; 					\
+				-o-transition-duration:.25s; 										\
+				-o-transition-property:all; 										\
+				-o-transition-timing-function:ease-in-out; 							\
+				-moz-transition-duration:.25s; 										\
+				-moz-transition-property:all; 										\
+				-moz-transition-timing-function:ease-in-out; 						\
+			}																		\
+			.gmt { display: none; }													\
+		');
+		
+		// this sets the local machine GMT based on location in the event that the local
+		// PC time is wrong
+		transeo_clock_updatetz1();
+		
+		var _tz2address = $.cookie('transeo.clock_tz2address');
+		if (_tz2address == null)
+			_tz2address = 'Springfield, MA';
+		transeo_clock_updatetz2(_tz2address);
+			
+		$('#tz2').hover(
+			function() { $('.tzchange',this).css('opacity','1'); },
+			function() { $('.tzchange',this).css('opacity','0'); }
+		);
+
+		// set local city name
+		$("#tz1 .title .city").text($('#content').data('transeo.config.city'));
+
+	}
+	
+	// this sets the local machine GMT based on location in the event that the local
+	// PC time is wrong
+	function transeo_clock_updatetz1() {
+		// uses google JSON api
+		// works better than geonames for geocoding
+		// technically, this is against policy because we're not putting it on a map
+		
+		// get address (city, state) from the data written when this page init'd
+		_address = $('#content').data('transeo.config.city') + ',' + $('#content').data('transeo.config.state');
+		
+		$.getJSON("http://maps.google.com/maps/geo?q="+ _address+"&key=' + TRANSEO_GMAPS_KEY + '&sensor=false&output=json&callback=?",
+			function(data, textStatus){
+				// get google's lat/lon for this address
+				var _lat = data['Placemark'][0]['Point']['coordinates'][1];
+				var _lon = data['Placemark'][0]['Point']['coordinates'][0];
+
+				// geocode city to coordinates using goenames.
+				// doesn't work all that well - doesn't pick major city
+				// also limited to 30k requests/day for all demo, and dunno how to get an account
+				$.getJSON('http://api.geonames.org/timezoneJSON?lat=' + _lat + '&lng=' + _lon + '&username=demo', function(data){
+					if (data['gmtOffset'] == undefined)
+						// if geonames is locked up, then use earthtools (slower)
+						$.exajax('http://www.earthtools.org/timezone/' + _lat + '/' + _lon,function(data) {
+							doc = (new DOMParser()).parseFromString(data['results'], 'text/xml');
+							$('#content').data('transeo.clock.tz1gmt',$(doc).find('offset').text());
+						});
+					else 
+						$('#content').data('transeo.clock.tz1gmt',data['gmtOffset']);
+
+					transeo_clock_updatedate();
+					$('#content').data('transeo.clock.timer',setInterval('transeo_clock_updatedate();',1000));
+				});
+		});	}
+	
+	function transeo_clock_updatetz2(_address) {
+		// set these values initially so that other widgets can use them
+		$('#tz2 input[name="address"]').val(_address);
+		$.cookie('transeo.clock_tz2address',_address);
+
+		// uses google JSON api
+		// works better than geonames for geocoding
+		// technically, this is against policy because we're not putting it on a map
+		$.getJSON("http://maps.google.com/maps/geo?q="+ _address+"&key=' + TRANSEO_GMAPS_KEY + '&sensor=false&output=json&callback=?",
+			function(data, textStatus){
+				if (data['Placemark'][0]['AddressDetails']['Country']['AdministrativeArea']['SubAdministrativeArea'])
+					$("#tz2 .title .city").text(data['Placemark'][0]['AddressDetails']['Country']['AdministrativeArea']['SubAdministrativeArea']['Locality']['LocalityName']);
+				else
+					$("#tz2 .title .city").text(data['Placemark'][0]['AddressDetails']['Country']['AdministrativeArea']['Locality']['LocalityName']);		
+					
+				// set the proper address name		
+				$('#tz2 input[name="address"]').val(data['Placemark'][0]['address']);
+				$.cookie('transeo.clock_tz2address',_address);
+
+				
+				var _lat = data['Placemark'][0]['Point']['coordinates'][1];
+				var _lon = data['Placemark'][0]['Point']['coordinates'][0];
+
+				// geocode city to coordinates using goenames.
+				// doesn't work all that well - doesn't pick major city
+				// also limited to 30k requests/day for all demo, and dunno how to get an account
+				$.getJSON('http://api.geonames.org/timezoneJSON?lat=' + _lat + '&lng=' + _lon + '&username=demo', function(data){
+					if (data['gmtOffset'] == undefined)
+						// if geonames is locked up, then use earthtools (slower)
+						$.exajax('http://www.earthtools.org/timezone/' + _lat + '/' + _lon,function(data) {
+							doc = (new DOMParser()).parseFromString(data['results'], 'text/xml');
+							$('#tz2 .gmt').text($(doc).find('offset').text());
+						});
+					else 
+						$('#tz2 .gmt').text(data['gmtOffset']);
+					transeo_clock_updatedate();
+				});
+		});
+
+		if ($('#tz2-weather').length) {
+			transeo_weather_updatetz2();
+		}
+		// uses javascript api
+		//<script type="text/javascript" src="http://maps.googleapis.com/maps/api/js?sensor=false">
+		/*geocoder = new google.maps.Geocoder();
+		geocoder.geocode( { 'address': _address}, function(results, status) {
+			if (status == google.maps.GeocoderStatus.OK) {
+				$("#tz2 .title .city").text(results[0]['address_components'][0]['long_name']);
+				var _lat = results[0]['geometry']['location']['Oa'];
+				var _lon = results[0]['geometry']['location']['Pa'];
+				$.getJSON('http://api.geonames.org/timezoneJSON?lat=' + _lat + '&lng=' + _lon + '&username=demo', function(data){
+					$('#tz2 .gmt').text(data['gmtOffset']);
+					transeo_clock_updatedate();
+				});
+			};
+		});*/
+			
+		return false;
+	}
+
+
+	function transeo_clock_updatedate() {
+		// so because the local machine might not have the right local time, we have to check the gmt
+		// we just set
+		// SWC 12/19/11
+		var _d = new Date();
+
+		// get the difference between the machinetime offset (.getTimezoneOffset() returns minutes because it's retarded)
+		// and the saved offset based on the location
+		_gmtdiff = $('#content').data('transeo.clock.tz1gmt') - -_d.getTimezoneOffset()/60;
+
+		// if the offset difference exists, change the current time before updating
+		if (_gmtdiff != 0);
+			_d.setHours(_d.getHours()+_gmtdiff);
+
+		// write out the tz1 (local) date and time
+		$("#tz1 .day").text(formatDate(_d,'EE, MMM dd yyyy'));
+		$("#tz1 .time").text(formatDate(_d,'h:mm:ss a'));
+
+		// for tz2, get the gmt offset that we looked up and then add the difference of local/tz2 gmt to
+		// the time right now (just like we did above)
+		_gmttarget = $('#tz2 .gmt').text();
+		_gmtdiff = _gmttarget - -_d.getTimezoneOffset()/60 ;
+		_d = new Date();
+		_d.setHours(_d.getHours()+_gmtdiff);
+
+		$("#tz2 .day").text(formatDate(_d,'EE, MMM dd yyyy'));
+		$("#tz2 .time").text(formatDate(_d,'h:mm:ss a'));
+	}
+</script>
+<script type="text/javascript">
+	function initpandora() {
+		
+		$('body').append('<div id="pandora"></div>');
+		
+		//$('#pandora').append('<iframe src="/_dashboard/pandora1.php"></iframe>');
+		//setTimeout("alert(hi)",2500);
+		//setTimeout("alert($('#pandora iframe).contentWindow.document);",2500);
+		
+		/*jQuery.ajax = (function(_ajax){
+    		return function(o) {
+				var url = o.url;
+				alert(url);
+				return _ajax.apply(this, arguments);
+			};
+		
+		})(jQuery.ajax);*/
+		
+		$.ajax({
+			url: 'http://www.pandora.com/radio/xmlrpc/v33?rid=1451176P&method=sync',
+			type: 'GET',
+			dataType: 'HTML',
+			beforeSend: function (xhr) {
+				xhr.setRequestHeader('User-Agent','Mozilla/5.0 (Windows NT 6.1; WOW64; rv:8.0) Gecko/20100101 Firefox/8.0');
+				xhr.setRequestHeader('Accept','application/xml, text/xml, */*; q=0.01');
+				xhr.setRequestHeader('Accept-Language','en-us,en;q=0.5');
+				xhr.setRequestHeader('Accept-Encoding','gzip, deflate');
+				xhr.setRequestHeader('Accept-Charset','ISO-8859-1,utf-8;q=0.7,*;q=0.7');
+				xhr.setRequestHeader('Connection','keep-alive');
+				xhr.setRequestHeader('Content-Type','text/xml; charset=UTF-8');
+				xhr.setRequestHeader('X-Requested-With','XMLHttpRequest');
+				xhr.setRequestHeader('Referer','http://www.pandora.com/');
+				xhr.setRequestHeader('Pragma','no-cache');
+				xhr.setRequestHeader('Cache-Control','no-cache');
+			},
+			complete: function(data){
+				//var _response = data['responseText'];
+				alert(JSON.stringify(data));
+				//var re = new RegExp('(href=|src=)[\'\"]((http{0}|.)*?)[\'\"]'); "g");
+				//$('#pandora').html(_response.replace(re, '$1"http://www.pandora.com/$2"'));
+				//alert(JSON.stringify($(data).contents().find('playbackControl')));
+			}
+		});
+		
+		//$('#pandora').load('http://www.pandora.com/#!/stations/play/340912836066376442');
+
+		// try to load via local "proxy"
+		//$('#pandora').load('/_dashboard/pandora1.php');
+		
+		
+		// frame buster buster
+		//$(window).bind('beforeunload', function () { return false; });
+		//$(window).unload(function () { return false; });
+		/*var prevent_bust = 0  
+		window.onbeforeunload = function() { prevent_bust++ }  
+		setInterval(function() {  
+		  if (prevent_bust > 0) {  
+			prevent_bust -= 2
+			window.top.location = 'http://www-dev.outfittr.com/_dashboard/204.php' 
+			// replace your iframe with link to it
+		  }  
+		}, 1)*/
+		
+		
+		//$('#pandora').append('<iframe src="http://www.pandora.com/#!/stations/play/340912836066376442"></iframe>');
+		
+		
+		
+		// this doesn't seem to work because you need all the script, etc.
+		//$.get('http://www.pandora.com/', function(data){
+		//	var _response = data['responseText'];
+		//	//alert(_response);
+		//	$('#pandora').html($(_response).contents().find('#playbackControl').html());
+		//});
+
+		
+		//alert($('#pandoraiframe').contentWindow.document);
+		//alert(document.getElementById('pandoraiframe').contentWindow.document);
+		//var contents = $('#pandora iframe').contents().find('body');
+		//alert(contents);
+		//alert(JSON.stringify(contents));
+	}
+</script>
+<script type="text/javascript">
+	$(document).ready(function () {
+		var $body = $('body'); //Cache this for performance
+		var setBodyScale = function() {
+			var scaleSource = $body.width(),
+				scaleFactor = 0.15,                     
+				maxScale = 600,
+				minScale = 30; //Tweak these values to taste
+
+			var fontSize = scaleSource * scaleFactor; //Multiply the width of the body by the scaling factor:
+
+			if (fontSize > maxScale) fontSize = maxScale;
+			if (fontSize < minScale) fontSize = minScale; //Enforce the minimum and maximums
+
+			$('body').css('font-size', fontSize + '%');
+		}
+
+		$(window).resize(function(){
+			setBodyScale();
+		});
+
+		//scale body text initially
+		setBodyScale();
+
+		initconfig(function() {
+			if (!initwidget('fromcookie'))
+				togglewidget('background','clock','weather');
+		});
+		//initpandora();
+	});
+		
+	
+	
+</script>
+
+<style type="text/css">
+	#content {
+		z-index:100;
+		position:absolute;
+		left:0;
+		top:0;
+		width:100%; 
+		height:100%;
+		margin: 0 auto; 
+		text-align:center;
+		font-family:Calibri; 
+	}
+	input.submit:hover {
+		text-decoration:underline;
+	}
+	input.submit {
+		cursor:pointer;
+		background:#3C6;
+		font-size:1.25em;
+		border-radius:0px;
+		-moz-border-radius:0px; 
+		-webkit-border-radius:0px; 
+		margin-left:5px;
+		border:0;
+		height:2.0em;
+	}
+	#config-trigger, #config {
+		position:absolute;
+		bottom:0px;
+		left:0px;
+		height:10px;
+		width:100%;
+	}
+	#config {
+		/*opacity:0;*/
+		border-top:solid 1px #bfbfbf;
+		z-index:1001;
+		height:50px;
+		display:none;
+		text-align:left;
+		background:#efefef;
+		overflow:hidden;
+	}
+	.config-widget {
+		margin-left:10px;
+		display:inline-block;
+		margin-top:8px;
+		font-size:.5em;
+	}
+	.config-features {
+		font-size:.45em; 
+		text-align:right;
+		color:#99F;
+		float:right;
+		height:100%;
+		padding-right:20px;
+		padding-left:20px;
+	}
+	div.config-widget input {
+		top:3px;
+		position:relative;
+	}
+	.button-mediacontrols {
+		display:inline-block;
+		background-color:rgba(255,255,255,0.5);		
+		border-radius-right:2px;					
+		-moz-border-radius:2px; 					
+		-webkit-border-radius:2px; 					
+		background-image:url('images/player-icons.png');
+		width:33px;
+		background-size:200px;
+		cursor:pointer;
+		height:33px;
+	}
+	.button-play {
+		background-position:-1px -1px;
+	}
+	.button-pause {
+		background-position:-42px -1px;
+	}
+	.button-next{
+		background-position:-165px -1px;
+	}
+</style>
+</head>
+<body>
+<div id="content"></div>
+</body>
+</html>
